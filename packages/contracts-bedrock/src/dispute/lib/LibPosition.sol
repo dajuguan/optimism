@@ -169,6 +169,19 @@ library LibPosition {
     ///         1. `_position` if `_isAttack` is true.
     ///         2. `_position | 1` if `_isAttack` is false.
     /// @param _position The position to get the relative attack/defense position of.
+    /// @param _bits Bits of N-ary search.
+    /// @param _branch The branch to be attacked at.
+    /// @return move_ The move position relative to `position`.
+    function moveN(Position _position, uint256 _bits, uint256 _branch) internal pure returns (Position move_) {
+        assembly {
+            move_ := shl(_bits, or(_branch, _position))
+        }
+    }
+
+    /// @notice Get the move position of `_position`, which is the left child of:
+    ///         1. `_position` if `_isAttack` is true.
+    ///         2. `_position | 1` if `_isAttack` is false.
+    /// @param _position The position to get the relative attack/defense position of.
     /// @param _isAttack Whether or not the move is an attack move.
     /// @return move_ The move position relative to `position`.
     function move(Position _position, bool _isAttack) internal pure returns (Position move_) {
