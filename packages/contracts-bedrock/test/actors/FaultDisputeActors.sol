@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "forge-std/console.sol";
 import { CommonBase } from "forge-std/Base.sol";
 
 import { FaultDisputeGame } from "src/dispute/FaultDisputeGame.sol";

@@ -90,6 +90,20 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
     /// @custom:semver 0.7.0
     string public constant version = "0.7.0";
 
+    /* claimsHash - claims to be replaced by blobs and verification*/
+    /// @notice internal mapping for claimsHash: bytes32 and claims: bytes32[].
+    mapping(Claim => Claim[]) internal kvMap;
+
+    function store(Claim claimsHash, Claim[] calldata _claims) public {
+        kvMap[claimsHash] = _claims;
+    }
+
+
+    function retrieve(Claim claimsHash, uint256 claimIndex) public view returns (Claim){
+        return kvMap[claimsHash][claimIndex];
+    }
+    /* --------------------------------- */
+
     /// @param _gameType The type ID of the game.
     /// @param _absolutePrestate The absolute prestate of the instruction trace.
     /// @param _genesisBlockNumber The block number of the genesis block.
@@ -128,6 +142,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
 
     /// @inheritdoc IFaultDisputeGame
     function step(uint256 _claimIndex, bool _isAttack, bytes calldata _stateData, bytes calldata _proof) public virtual {
+        console.log("Step:===========================");
         uint256 _attackBranch = _isAttack ? 0 : 1;
         stepV2(_claimIndex, _attackBranch, _stateData, _proof);
     }
@@ -207,13 +222,14 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
     }
 
     function move(uint256 _challengeIndex, Claim _claim, bool _isAttack) public payable virtual {
+        console.log("Move:======================");
         uint256 _attackBranch = _isAttack ? 0 : 1;
         moveV2(_challengeIndex, _claim, _attackBranch);
     }
 
     /// @notice Generic move function, used for both `attack` and `defend` moves.
     /// @param _challengeIndex The index of the claim being moved against.
-    /// @param _claim The claim at the next logical position in the game.
+    /// @param _claim The claimsHash at the next logical position in the game.
     /// @param _attackBranch Which branch claim to attack.
     function moveV2(uint256 _challengeIndex, Claim _claim, uint256 _attackBranch) public payable {
         // For N = 2 (bisec),
@@ -310,6 +326,12 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
 
         // Emit the appropriate event for the attack or defense.
         emit Move(_challengeIndex, _claim, msg.sender);
+    }
+
+    /// @inheritdoc IFaultDisputeGame
+    function attack(uint256 _parentIndex, Claim _claim) external payable {
+        // Compatible with bi-sect
+        attackAt(_parentIndex, _claim, 0);
     }
 
     /// @inheritdoc IFaultDisputeGame
@@ -796,25 +818,21 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         moveV2(_parentIndex, _claim, _attackBranch);
     }
 
-    /// @inheritdoc IFaultDisputeGame
-    function attack(uint256 _parentIndex, Claim _claim) external payable {
-        // Compatible with bi-sect
-        attackAt(_parentIndex, _claim, 0);
-    }
-
     function getClaimFromClaimHash(
         Claim claimsHash,
         uint256 claimIndex
-    ) internal returns (Claim) {
+    ) internal view returns (Claim) {
         // TODO: retrieve the claim from the claimsHash
         // Either: from EIP-4844 BLOB with point-evaluation proof or calldata with Merkle proof
+        return claimsHash;
+        // return retrieve(claimsHash, claimIndex);
     }
 
     function findPreStateClaim(
         uint256 _nary,
         Position _pos,
         uint256 _start
-    ) public returns (Position pos_, Claim claim_) {
+    ) public view returns (Position pos_, Claim claim_) {
         ClaimData storage ancestor_ = claimData[_start];
         uint256 pos = _pos.raw();
         while (pos % _nary == 0 && pos != 1) {
@@ -823,8 +841,10 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         }
         if (pos == 1) {
             // S_0
+            console.log("=======================ABSOLUTE_PRESTATE");
             claim_ = ABSOLUTE_PRESTATE;
         } else {
+            console.log("=======================getClaimFromClaimHash");
             claim_ = getClaimFromClaimHash(ancestor_.claim, (pos - 1) % _nary);
         }
         return (Position.wrap(uint128(pos)), claim_);
@@ -834,7 +854,7 @@ contract FaultDisputeGame is IFaultDisputeGame, Clone, ISemver {
         uint256 _nary,
         Position _pos,
         uint256 _start
-    ) public returns (Position pos_, Claim claim_) {
+    ) public view returns (Position pos_, Claim claim_) {
         ClaimData storage ancestor_ = claimData[_start];
         uint256 pos = _pos.raw();
         while ((pos + 1) % _nary == 0 && pos != 1) {
